@@ -1,0 +1,196 @@
+---
+title: "stats101B_project"
+author: "Sam Reade"
+date: "2025-05-27"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "~/Desktop/STATS 101B")
+```
+
+# libraries:
+
+```{r}
+library(dplyr)
+library(pwr)
+```
+
+
+```{r}
+
+data = read.csv("proj.csv")
+
+```
+
+```{r}
+
+names(data) 
+
+```
+
+
+```{r}
+new_data <- data[, c("Islander.Name", "Island.Location", "Island.City", "City.house..", "Gender",     
+                     "Age", "Assigned.Treatment..30.min.", "NEW.cortisol.day.0..before...µg.dL", "NEW.cortisol.day.1..µg.dL",       "Age.range..12.19....20.29....30.39....40.49....50.59....60.69....70.79....80.89....90.99.")] 
+```
+
+
+```{r}
+
+new_data
+
+```
+
+```{r}
+new_data = new_data[new_data$Islander.Name != "Violaine Reynaud", ]
+new_data = new_data[new_data$Islander.Name != "Jochen Voigt", ]
+
+```
+
+
+```{r}
+new_data$cortisol_diff = new_data$NEW.cortisol.day.0..before...µg.dL - new_data$NEW.cortisol.day.1..µg.dL
+```
+
+# Within means: 
+
+```{r}
+
+new_data %>%
+  group_by(Assigned.Treatment..30.min.) %>%
+  summarize(group_mean = mean(cortisol_diff, na.rm = TRUE))
+
+```
+
+# Within SD:
+
+```{r}
+
+sd_within <- new_data %>%
+  group_by(Assigned.Treatment..30.min.) %>%
+  summarize(var = var(cortisol_diff, na.rm = TRUE)) %>%
+  pull(var) %>%
+  mean() %>%
+  sqrt()
+
+sd_within
+
+```
+
+
+```{r}
+
+group_means <- c(0.015600000, -0.009600000, 0.012066667, 0.011133333, 0.003733333, 0.005800000)
+sd_within <- 0.02524062
+
+grand_mean <- mean(group_means)
+k <- length(group_means)
+
+numerator <- sum((group_means - grand_mean)^2) / k
+
+f <- sqrt(numerator / sd_within^2)
+f
+
+```
+
+
+```{r}
+
+pwr.anova.test(k = 6, f = 0.3245381, n = NULL, sig.level = 0.05, power = 0.9)
+
+```
+
+```{r}
+
+new_data$age_range <- factor(new_data$Age.range..12.19....20.29....30.39....40.49....50.59....60.69....70.79....80.89....90.99.)
+
+```
+
+# Model:
+
+```{r}
+mod = aov(cortisol_diff ~ Assigned.Treatment..30.min. + age_range, data = new_data)
+
+summary(mod)
+
+```
+
+
+```{r}
+
+par(mfrow = c(2, 2))
+plot(mod)
+
+```
+
+
+
+
+
+
+
+
+
+```{r}
+new_data$cortisol_diff = new_data$cortisol.day.0..before...µg.dL - new_data$cortisol.day.1..µg.dL
+```
+
+
+```{r}
+
+filtered_data <- new_data[new_data$Assigned.Treatment..30.min. == "Strength Training", ]
+
+```
+
+
+```{r}
+t.test(filtered_data$cortisol.day.0..before...µg.dL, filtered_data$cortisol.day.1..µg.dL, paired = TRUE, alternative = "greater") 
+
+```
+
+
+```{r}
+subset$cortisol_diff = subset$cortisol.day.0..before...µg.dL - subset$cortisol.day.1..µg.dL
+
+mod = lm(cortisol_diff ~ Island.Location, data = subset)
+
+anova(mod) 
+
+```
+
+```{r}
+
+model = lm(cortisol_diff ~ 1, data = subset)
+summary(model) 
+
+```
+
+
+```{r}
+
+modelEZ <- lm(cortisol_diff ~ Assigned.Treatment..30.min., data = new_data)
+anova(modelEZ)
+
+```
+
+```{r}
+
+new_data$Assigned.Treatment..30.min. <- factor(new_data$Assigned.Treatment..30.min.)
+
+modelJK <- lm(cortisol_diff ~ 0 + Assigned.Treatment..30.min., data = new_data)
+
+summary(modelJK)
+
+```
+
+```{r}
+
+coefs <- summary(modelJK)$coefficients
+
+# One-sided p-value for reduction > 0:
+p_one_sided <- pt(coefs[, "t value"], df = modelJK$df.residual, lower.tail = FALSE)
+p_one_sided
+
+```
+
